@@ -24,6 +24,8 @@ function Rename-SrtFiles {
 	else {
 		throw "Subtitle folder does not exist: $SubtitlePath"
 	}
+	$sameSubtitleFolder = [System.IO.Path]::GetFullPath($resolvedVideoPath).TrimEnd('\', '/') -ieq
+		[System.IO.Path]::GetFullPath($resolvedSubtitlePath).TrimEnd('\', '/')
 
 	$videoFiles = @(
 		Get-ChildItem -LiteralPath $resolvedVideoPath -File |
@@ -107,10 +109,11 @@ function Rename-SrtFiles {
 		})
 	}
 
-	Write-Host "`nPlanned subtitle renames:"
+	Write-Host "`nPlanned subtitle operations:"
 	foreach ($match in $matchPlan) {
 		$subtitleName = if ($null -eq $match.Subtitle) { '(no subtitle)' } else { $match.Subtitle.Name }
-		Write-Host "  $($match.Video.Name)  <-  $subtitleName"
+		$operation = if ($sameSubtitleFolder) { 'rename' } else { 'copy as' }
+		Write-Host "  $($match.Video.Name)  <-  $subtitleName ($operation $($match.Video.BaseName).srt)"
 	}
 	if ($availableSubtitles.Count -gt 0) {
 		Write-Host "Unused subtitle files: $((@($availableSubtitles | ForEach-Object Name)) -join ', ')"
@@ -119,12 +122,13 @@ function Rename-SrtFiles {
 	$renamePlan = @(
 		foreach ($match in $matchPlan) {
 			if ($null -ne $match.Subtitle) {
-				$destinationPath = Join-Path $resolvedSubtitlePath ($match.Video.BaseName + '.srt')
+				$destinationPath = Join-Path $resolvedVideoPath ($match.Video.BaseName + '.srt')
 				if (-not $match.Subtitle.FullName.Equals($destinationPath, [System.StringComparison]::OrdinalIgnoreCase)) {
 					[pscustomobject]@{
 						Source      = $match.Subtitle
 						Destination = $destinationPath
 						NewName     = $match.Video.BaseName + '.srt'
+						Copy        = -not $sameSubtitleFolder
 					}
 				}
 			}
@@ -153,7 +157,13 @@ function Rename-SrtFiles {
 	}
 
 	foreach ($rename in $renamePlan) {
-		Rename-Item -LiteralPath $rename.Source.FullName -NewName $rename.NewName -ErrorAction Stop
-		Write-Host "Renamed '$($rename.Source.Name)' to '$($rename.NewName)'"
+		if ($rename.Copy) {
+			Copy-Item -LiteralPath $rename.Source.FullName -Destination $rename.Destination -ErrorAction Stop
+			Write-Host "Copied '$($rename.Source.Name)' to '$($rename.Destination)'"
+		}
+		else {
+			Rename-Item -LiteralPath $rename.Source.FullName -NewName $rename.NewName -ErrorAction Stop
+			Write-Host "Renamed '$($rename.Source.Name)' to '$($rename.NewName)'"
+		}
 	}
 }
