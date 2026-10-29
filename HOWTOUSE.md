@@ -87,13 +87,12 @@ Rename-SrtFiles -VideoPath . -SubtitlePath "D:\Downloads\Subtitles"
 
 ## Matching and File Changes
 
-The function sorts the video and subtitle filenames and tries to match available subtitles to each video. For episodic filenames, it first looks for a season-and-episode token such as `S01E10` in both names. The season and episode numbers are compared numerically, so `S1E10` also matches `S01E10`. For example, `Show.S01E10.1080p.mkv` can match `Show.S01E10.English.srt` even if other parts of their names differ.
+The videos and subtitles are assumed to belong to the same movie or show. If you supply separate video and subtitle folders, choose folders that belong together; show names are not validated.
 
-If no available subtitle has the same season-and-episode token, the function checks for a direct filename match: the subtitle filename (without `.srt`) must exactly match the video filename (without its video extension), or start with that video name followed by a space, period, underscore, or hyphen. For example, `Film.en.srt` is a candidate for `Film.mkv`.
+- **One video and one subtitle:** they always match, regardless of their filenames. For example, `Downloaded.Subtitles.srt` becomes `Film.srt` alongside `Film.mkv`
+- **Multiple files:** exact filenames are reserved first. Remaining videos are matched by the first season-and-episode token, such as `S01E10`. Numbers are compared numerically, so `S1E10` matches `S01E10`; show names do not matter. If no episode match is found, the function tries a filename prefix such as `Film.en.srt` for   `Film.mkv`, considering longer video names first.
 
-If multiple subtitles match by season and episode or by filename, the function lists them and asks you to choose one. Enter the displayed number, or enter `0` to cancel the operation.
-
-If neither the season-and-episode nor filename checks find a candidate, the function assigns the first remaining subtitle in alphabetical order. This fallback cannot determine the true pairing from filenames alone, so carefully review the displayed plan before confirming.
+If multiple subtitles match, you choose one from a numbered list; enter `0` to cancel before and files change. With multiple files, unmatched videos and unused subtitles are left untouched rather than paired alphabetically. Multi-episode ranges are not specially interpreted, so review their proposed matches before confirming.
 
 If the number of video files and subtitle files differs, the function shows a warning and asks whether to continue. Answer `y` or `yes` to continue; any other response cancels. Some videos may then have no subtitle, or some subtitle files may remain unused.
 

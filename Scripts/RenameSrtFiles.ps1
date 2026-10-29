@@ -61,70 +61,74 @@ function Rename-SrtFiles {
 
 	$matchPlan = [System.Collections.Generic.List[object]]::new()
 	foreach ($videoFile in $videoFiles) {
-		$videoEpisode = [regex]::Match($videoFile.BaseName, $episodePattern)
-		$matchingCandidates = @()
-		if ($videoEpisode.Success) {
-			$seasonNumber = [int]$videoEpisode.Groups['Season'].Value
-			$episodeNumber = [int]$videoEpisode.Groups['Episode'].Value
-			$matchingCandidates = @(
-				$availableSubtitles | Where-Object {
-					$subtitleEpisode = [regex]::Match($_.BaseName, $episodePattern)
-					$subtitleEpisode.Success -and
-					[int]$subtitleEpisode.Groups['Season'].Value -eq $seasonNumber -and
-					[int]$subtitleEpisode.Groups['Episode'].Value -eq $episodeNumber
-				}
-			)
-		}
+        $selectedSubtitle = $availableSubtitles | Where-Object BaseName -EQ $videoFile.BaseName | Select-Object -First 1
+        if ($null -ne $selectedSubtitle) {
+            $null = $availableSubtitles.Remove($selectedSubtitle)
+        }
+		$matchPlan.Add([PSCustomObject]@{
+            Video = $videoFile
+            Subtitle = $selectedSubtitle
+        })
+    }
 
-		if ($matchingCandidates.Count -eq 0) {
-			$matchingCandidates = @(
-				$availableSubtitles | Where-Object {
-					$_.BaseName.Equals($videoFile.BaseName, [System.StringComparison]::OrdinalIgnoreCase) -or
-					$_.BaseName.StartsWith($videoFile.BaseName, [System.StringComparison]::OrdinalIgnoreCase) -and
-					$_.BaseName.Length -gt $videoFile.BaseName.Length -and
-					$_.BaseName[$videoFile.BaseName.Length] -match '[ ._-]'
-				}
-			)
-		}
+    $pendingMatches = @($matchPlan | Where-Object {$null -eq $_.Subtitle} | Sort-Object { $_.Video.BaseName.Length} -Descending)
+    foreach ($match in $pendingMatches) {
+        $videoFile = $match.Video
+        $matchingCandidates = @()
+        if ($videoFiles.Count -eq 1 -and $subtitleFiles.Count -eq 1) {
+            $matchingCandidates = @($availableSubtitles.ToArray())
+        }
+        else {
+            $videoEpisode = [regex]::Match($videoFile.BaseName, $episodePattern)
+            if ($videoEpisode.Success) {
+                $matchingCandidates = @(
+		            $availableSubtitles | Where-Object {
+                        $subtitleEpisode = [regex]::Match($_.BaseName, $episodePattern)
+                        $subtitleEpisode.Success -and
+                        [int]$subtitleEpisode.Groups['Season'].Value -eq [int]$videoEpisode.Groups['Season'].Value -and
+                        [int]$subtitleEpisode.Groups['Episode'].Value -eq [int]$videoEpisode.Groups['Episode'].Value
+		            }
+	            )
+            }
+            if ($matchingCandidates.Count -eq 0) {
+                $matchingCandidates = @(
+                    $availableSubtitles | Where-Object {
+                        $_.BaseName.StartsWith($videoFile.BaseName, [System.StringComparison]::OrdinalIgnoreCase) -and
+                        $_.BaseName.Length -gt $videoFile.BaseName.Length -and
+                        $_.BaseName[$videoFile.BaseName.Length] -match '[ ._-]'
+                    }
+                )
+            }
+        }   
 
-		$selectedSubtitle = $null
-		if ($matchingCandidates.Count -gt 1) {
-			Write-Host "`nMultiple subtitle files could match '$($videoFile.Name)':"
-			for ($index = 0; $index -lt $matchingCandidates.Count; $index++) {
-				Write-Host "  $($index + 1). $($matchingCandidates[$index].Name)"
-			}
-
-			do {
-				$selection = Read-Host "Select a subtitle number, or 0 to cancel"
-				$selectionNumber = 0
-				$validSelection = [int]::TryParse($selection, [ref]$selectionNumber) -and
-					$selectionNumber -ge 0 -and $selectionNumber -le $matchingCandidates.Count
-				if (-not $validSelection) {
-					Write-Host 'Enter one of the listed numbers.'
-				}
-			} until ($validSelection)
-
-			if ($selectionNumber -eq 0) {
-				Write-Host 'Cancelled; no files were renamed.'
-				return
-			}
-			$selectedSubtitle = $matchingCandidates[$selectionNumber - 1]
-		}
-		elseif ($matchingCandidates.Count -eq 1) {
-			$selectedSubtitle = $matchingCandidates[0]
-		}
-		elseif ($availableSubtitles.Count -gt 0) {
-			$selectedSubtitle = $availableSubtitles[0]
-		}
-
-		if ($null -ne $selectedSubtitle) {
-			$null = $availableSubtitles.Remove($selectedSubtitle)
-		}
-
-		$matchPlan.Add([pscustomobject]@{
-			Video    = $videoFile
-			Subtitle = $selectedSubtitle
-		})
+        $selectedSubtitle = $null
+        if ($matchingCandidates.Count -gt 1) {
+            Write-Host "`nMultiple subtitle files could match '$($videoFile.Name)':"
+            for ($index = 0; $index -lt $matchingCandidates.Count; $index++) {
+                Write-Host "  $($index + 1). $($matchingCandidates[$index].Name)"
+            }
+            do {
+                $selection = Read-Host "Select a subtitle number, or 0 to cancel"
+                $selectionNumber = 0
+                $validSelection = [int]::TryParse($selection, [ref]$selectionNumber) -and
+                    $selectionNumber -ge 0 -and $selectionNumber -le $matchingCandidates.Count
+                if (-not $validSelection) {
+                    Write-Host 'Enter one of the listed numbers.'
+                }
+            } until ($validSelection)
+            if ($selectionNumber -eq 0) {
+                Write-Host 'Cancelled; no files were renamed.'
+                return
+            }
+            $selectedSubtitle = $matchingCandidates[$selectionNumber - 1]
+        }
+        elseif ($matchingCandidates.Count -eq 1) {
+            $selectedSubtitle = $matchingCandidates[0]
+        }
+        if ($null -ne $selectedSubtitle) {
+            $null = $availableSubtitles.Remove($selectedSubtitle)
+            $match.Subtitle = $selectedSubtitle
+        }
 	}
 
 	Write-Host "`nPlanned subtitle operations:"
