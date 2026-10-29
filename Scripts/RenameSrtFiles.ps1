@@ -9,6 +9,7 @@ function Rename-SrtFiles {
 	)
 
 	$videoExtensions = @('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpeg', '.mpg', '.ts', '.m2ts', '.3gp', '.ogv')
+	$episodePattern = '(?i)(?<![A-Z0-9])S(?<Season>\d{1,2})[\s._-]*E(?<Episode>\d{1,2})(?!\d)'
 
 	if (-not (Test-Path -LiteralPath $VideoPath -PathType Container)) {
 		throw "Video folder does not exist: $VideoPath"
@@ -60,14 +61,31 @@ function Rename-SrtFiles {
 
 	$matchPlan = [System.Collections.Generic.List[object]]::new()
 	foreach ($videoFile in $videoFiles) {
-		$matchingCandidates = @(
-			$availableSubtitles | Where-Object {
-				$_.BaseName.Equals($videoFile.BaseName, [System.StringComparison]::OrdinalIgnoreCase) -or
-				$_.BaseName.StartsWith($videoFile.BaseName, [System.StringComparison]::OrdinalIgnoreCase) -and
-				$_.BaseName.Length -gt $videoFile.BaseName.Length -and
-				$_.BaseName[$videoFile.BaseName.Length] -match '[ ._-]'
-			}
-		)
+		$videoEpisode = [regex]::Match($videoFile.BaseName, $episodePattern)
+		$matchingCandidates = @()
+		if ($videoEpisode.Success) {
+			$seasonNumber = [int]$videoEpisode.Groups['Season'].Value
+			$episodeNumber = [int]$videoEpisode.Groups['Episode'].Value
+			$matchingCandidates = @(
+				$availableSubtitles | Where-Object {
+					$subtitleEpisode = [regex]::Match($_.BaseName, $episodePattern)
+					$subtitleEpisode.Success -and
+					[int]$subtitleEpisode.Groups['Season'].Value -eq $seasonNumber -and
+					[int]$subtitleEpisode.Groups['Episode'].Value -eq $episodeNumber
+				}
+			)
+		}
+
+		if ($matchingCandidates.Count -eq 0) {
+			$matchingCandidates = @(
+				$availableSubtitles | Where-Object {
+					$_.BaseName.Equals($videoFile.BaseName, [System.StringComparison]::OrdinalIgnoreCase) -or
+					$_.BaseName.StartsWith($videoFile.BaseName, [System.StringComparison]::OrdinalIgnoreCase) -and
+					$_.BaseName.Length -gt $videoFile.BaseName.Length -and
+					$_.BaseName[$videoFile.BaseName.Length] -match '[ ._-]'
+				}
+			)
+		}
 
 		$selectedSubtitle = $null
 		if ($matchingCandidates.Count -gt 1) {
