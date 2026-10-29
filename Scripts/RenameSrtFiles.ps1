@@ -10,29 +10,6 @@ function Rename-SrtFiles {
 
 	$videoExtensions = @('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpeg', '.mpg', '.ts', '.m2ts', '.3gp', '.ogv')
 	$episodePattern = '(?i)(?<![A-Z0-9])S(?<Season>\d{1,2})[\s._-]*E(?<Episode>\d{1,2})(?!\d)'
-    $episodeContinuationPattern = '^[\s._+&/-]*(?:E\d|S\d{1,2}[\s._-]*E\d)|^[\s._]*[-+&/][\s._]*\d|^[\s._]+\d{1,2}(?=$|[\s._-])'
-
-    function Get-EpisodeMatchKey {
-        param([string]$BaseName)
-
-        $episodes = [regex]::Matches($BaseName, $episodePattern)
-        if ($episodes.Count -ne 1) {
-            return $null
-        }
-
-        $episode = $episodes[0]
-        $suffix = $BaseName.Substring($episode.Index + $episode.Length)
-        if ($suffix - match $episodeContinuationPattern) {
-            return $null
-        }
-
-        $showName = [regex]::Replace($BaseName.Substring(0, $episode.Index), '[\s._-]+', ' ').Trim()
-        if ([string]::IsNullOrWhiteSpace($showName)) {
-            return $null
-        }
-
-        return '{0}|{1}|{2}' -f $showName, [int]$episode,Groups['Season'].Value, [int]$episode.Groups['Episode'].Value
-    }
 
 	if (-not (Test-Path -LiteralPath $VideoPath -PathType Container)) {
 		throw "Video folder does not exist: $VideoPath"
@@ -84,74 +61,75 @@ function Rename-SrtFiles {
 
 	$matchPlan = [System.Collections.Generic.List[object]]::new()
 	foreach ($videoFile in $videoFiles) {
+        $selectedSubtitle = $availableSubtitles | Where-Object BaseName -EQ $videoFile.BaseName | Select-Object -First 1
+        if ($null -ne $selectedSubtitle) {
+            $null = $availableSubtitles.Remove($selectedSubtitle)
+        }
 		$matchPlan.Add([PSCustomObject]@{
             Video = $videoFile
-            Subtitle = $null
+            Subtitle = $selectedSubtitle
         })
     }
 
-    foreach ($matchKind in @('Exact', 'Prefix', 'Episode')) {
-        $pendingMatches = @($matchPlan | Where-Object {$null -eq $_.Subtitle})
-        if ($matchKind -eq 'Prefix') {
-            $pendingMatches = @($pendingMatches | Sort-Object { $_.Video.BaseName.Length } -Descending)
+    $pendingMatches = @($matchPlan | Where-Object {$null -eq $_.Subtitle} | Sort-Object { $_.Video.BaseName.Length} -Descending)
+    foreach ($match in $pendingMatches) {
+        $videoFile = $match.Video
+        $matchingCandidates = @()
+        if ($videoFiles.Count -eq 1 -and $subtitleFiles.Count -eq 1) {
+            $matchingCandidates = @($availableSubtitles.ToArray())
         }
+        else {
+            $videoEpisode = [regex]::Match($videoFile.BaseName, $episodePattern)
+            if ($videoEpisode.Success) {
+                $matchingCandidates = @(
+		            $availableSubtitles | Where-Object {
+                        $subtitleEpisode = [regex]::Match($_.BaseName, $episodePattern)
+                        $subtitleEpisode.Success -and
+                        [int]$subtitleEpisode.Groups['Season'].Value -eq [int]$videoEpisode.Groups['Season'].Value -and
+                        [int]$subtitleEpisode.Groups['Episode'].Value -eq [int]$videoEpisode.Groups['Episode'].Value
+		            }
+	            )
+            }
+            if ($matchingCandidates.Count -eq 0) {
+                $matchingCandidates = @(
+                    $availableSubtitles | Where-Object {
+                        $_.BaseName.StartsWith($videoFile.BaseName, [System.StringComparison]::OrdinalIgnoreCase) -and
+                        $_.BaseName.Length -gt $videoFile.BaseName.Length -and
+                        $_.BaseName[$videoFile.BaseName.Length] -match '[ ._-]'
+                    }
+                )
+            }
+        }   
 
-        foreach ($match in $pendingMatches) {
-            $videoFile = $match.Video
-            $videoEpisodeKey = Get-EpisodeMatchKey -BaseName $videoFile.BaseName
-		    $matchingCandidates = @(
-			    $availableSubtitles | Where-Object {
-                    $subtitleFile = $_
-                    switch ($matchKind) {
-                        'Exact' {  
-                            $subtitleFile.BaseName.Equals($videoFile.BaseName, [System.StringComparison]::OrdinalIgnoreCase)
-                        }
-                        'Prefix' {
-                            $subtitleFile.BaseName.StartsWith($videoFile.BaseName, [System.StringComparison]::OrdinalIgnoreCase) -and
-				            $subtitleFile.BaseName.Length -gt $videoFile.BaseName.Length -and
-				            $subtitleFile.BaseName[$videoFile.BaseName.Length] -match '[ ._-]' -and
-                            (-not [regex]::IsMatch($videoFile.BaseName, $episodePattern) -or
-                                ($null -ne $videoEpisodeKey -and
-                                    $videoEpisodeKey -eq (Get-EpisodeMatchKey -BaseName $subtitleFile.BaseName)))
-                        }
-                        'Episode' {  
-                            $null -ne $videoEpisodeKey -and
-                            $videoEpisodeKey -eq (Get-EpisodeMatchKey -BaseName $subtitleFile.BaseName)
-                        }
-                    }
-			    }
-		    )
-	
-            $selectedSubtitle = $null
-            if ($matchingCandidates.Count -gt 1) {
-                Write-Host "`nMultiple subtitle files could match '$($videoFile.Name)':"
-                for ($index = 0; $index -lt $matchingCandidates.Count; $index++) {
-                    Write-Host "  $($index + 1). $($matchingCandidates[$index].Name)"
+        $selectedSubtitle = $null
+        if ($matchingCandidates.Count -gt 1) {
+            Write-Host "`nMultiple subtitle files could match '$($videoFile.Name)':"
+            for ($index = 0; $index -lt $matchingCandidates.Count; $index++) {
+                Write-Host "  $($index + 1). $($matchingCandidates[$index].Name)"
+            }
+            do {
+                $selection = Read-Host "Select a subtitle number, or 0 to cancel"
+                $selectionNumber = 0
+                $validSelection = [int]::TryParse($selection, [ref]$selectionNumber) -and
+                    $selectionNumber -ge 0 -and $selectionNumber -le $matchingCandidates.Count
+                if (-not $validSelection) {
+                    Write-Host 'Enter one of the listed numbers.'
                 }
-                do {
-                    $selection = Read-Host "Select a subtitle number, or 0 to cancel"
-                    $selectionNumber = 0
-                    $validSelection = [int]::TryParse($selection, [ref]$selectionNumber) -and
-                        $selectionNumber -ge 0 -and $selectionNumber -le $matchingCandidates.Count
-                    if (-not $validSelection) {
-                        Write-Host 'Enter one of the listed numbers.'
-                    }
-                } until ($validSelection)
-                if ($selectionNumber -eq 0) {
-                    Write-Host 'Cancelled; no files were renamed.'
-                    return
-                }
-                $selectedSubtitle = $matchingCandidates[$selectionNumber - 1]
+            } until ($validSelection)
+            if ($selectionNumber -eq 0) {
+                Write-Host 'Cancelled; no files were renamed.'
+                return
             }
-            elseif ($matchingCandidates.Count -eq 1) {
-                $selectedSubtitle = $matchingCandidates[0]
-            }
-            if ($null -ne $selectedSubtitle) {
-                $null = $availableSubtitles.Remove($selectedSubtitle)
-                $match.Subtitle = $selectedSubtitle
-            }
-	    }
-    }
+            $selectedSubtitle = $matchingCandidates[$selectionNumber - 1]
+        }
+        elseif ($matchingCandidates.Count -eq 1) {
+            $selectedSubtitle = $matchingCandidates[0]
+        }
+        if ($null -ne $selectedSubtitle) {
+            $null = $availableSubtitles.Remove($selectedSubtitle)
+            $match.Subtitle = $selectedSubtitle
+        }
+	}
 
 	Write-Host "`nPlanned subtitle operations:"
 	foreach ($match in $matchPlan) {

@@ -4,7 +4,8 @@ Subtitle Renamer is a PowerShell utility that matches `.srt` subtitle files to v
 
 The `Rename-SrtFiles` function supports video files with common extensions such as `.mp4`, `.mkv`, `.avi`, `.mov`, and `.wmv`. It previews the proposed matches and asks for confirmation before making changes.
 
-Matching reserves exact filenames first, then filename prefixes, then compatible show/season/episode identitites. Unmatched files are left untouched.
+Files are assumed to belong together. A single video and subtitle always match, regardless of their names. With multiple files,
+matching uses exact filenames, season/episode numbers, or filename prefixes; show names are ignored.
 
 Subtitle output is always placed in the video folder. When the source subtitles are already in that folder, the selected files are renamed in place. When subtitles are in another folder, matching files are copied to the video folder and the originals are left unchanged.
 
