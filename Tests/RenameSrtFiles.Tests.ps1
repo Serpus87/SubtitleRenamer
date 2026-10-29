@@ -28,11 +28,11 @@ Describe 'Rename-SrtFiles matching' {
     }
 
     It 'renames a subtitle file with a matching video file' {
-        New-MatchingFixture -Videos @('Film.mkv') -Subtitles @('Film.Something.srt')
+        New-MatchingFixture -Videos @('Video.mkv') -Subtitles @('Subtitle.srt')
 
         Rename-SrtFiles -VideoPath $videoDirectory -SubtitlePath $subtitleDirectory
 
-        Test-Path -LiteralPath (Join-Path $videoDirectory 'Film.Something.srt') | Should Be $false
-        Test-Path -LiteralPath (Join-Path $videoDirectory 'Film.srt') | Should Be $true
+        Test-Path -LiteralPath (Join-Path $videoDirectory 'Subtitle.srt') | Should Be $false
+        Test-Path -LiteralPath (Join-Path $videoDirectory 'Video.srt') | Should Be $true
     }
 }
