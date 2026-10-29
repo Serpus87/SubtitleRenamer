@@ -17,7 +17,7 @@ From the repository root, run the regression suite with Pester 3.4.0:
 
 ```powershell
 Import-Module Pester -RequiredVersion 3.4.0
-Invoke-Pester - Script .\Tests\RenameSrtFiles.Tests.ps1
+Invoke-Pester -Script .\Tests\RenameSrtFiles.Tests.ps1
 ```
 
 The tests use isolated temporary files in Pester's `TestDrive`; no personal media files are needed.
