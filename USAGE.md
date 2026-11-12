@@ -1,4 +1,4 @@
-# How to Use Subtitle Renamer
+# Subtitle Renamer Usage
 
 `Scripts/RenameSrtFiles.ps1` defines the `Rename-SrtFiles` PowerShell function. The function scans a video folder and a subtitle folder, builds a proposed mapping, and asks for confirmation before changing any files.
 
@@ -15,10 +15,10 @@ The recognized video extensions are `.mp4`, `.mkv`, `.avi`, `.mov`, `.wmv`, `.fl
 The file defines a function; it does not run the function automatically. Load the definition into the current PowerShell session by **dot-sourcing** the script:
 
 ```powershell
-. "C:\Users\Cesar\source\repos\SubtitleRenamer\Scripts\RenameSrtFiles.ps1"
+. "<repo>\Scripts\RenameSrtFiles.ps1"
 ```
 
-Replace the example path with the location where you checked out this project. The dot-source operator is the period followed by a space and then the script path. Keep the quotes if the path contains spaces.
+Replace `<repo>` with the location where you checked out this project. The dot-source operator is the period followed by a space and then the script path. Keep the quotes if the path contains spaces.
 
 After dot-sourcing, call the function by name:
 
@@ -28,71 +28,24 @@ Rename-SrtFiles
 
 Dot-sourcing makes the function available in the current PowerShell session. If you open a new session, load the file again, or configure your PowerShell profile as described below.
 
-## Function Parameters
+## Parameters and Examples
 
-The function accepts two optional parameters:
-
-| Parameter | Positional order | Default | Purpose |
-| --- | ---: | --- | --- |
-| `-VideoPath` | First | The current working directory | Folder containing the video files. |
-| `-SubtitlePath` | Second | The value of `-VideoPath` | Folder containing the `.srt` files. |
-
-Paths must refer to existing folders. You can use named parameters, which are easiest to read, or positional arguments.
-
-### Use the Current Folder
-
-With no arguments, both videos and subtitles are read from the current working directory:
+Parameters (-VideoPath, -SubtitlePath) and examples are documented in the function's built-in help:
 
 ```powershell
-Rename-SrtFiles
-```
+Get-Help Rename-SrtFiles -Full
+```r
 
-The current working directory is the folder shown by `Get-Location`, not necessarily the folder containing the `.ps1` file.
-
-### Specify the Video Folder
-
-If `-SubtitlePath` is omitted, subtitles are also read from the video folder:
-
-```powershell
-Rename-SrtFiles -VideoPath "D:\Media\Season 1"
-```
-
-The equivalent positional form is:
-
-```powershell
-Rename-SrtFiles "D:\Media\Season 1"
-```
-
-### Specify Separate Video and Subtitle Folders
-
-Use both parameters when the `.srt` files are stored elsewhere:
-
-```powershell
-Rename-SrtFiles -VideoPath "D:\Media\Season 1" -SubtitlePath "D:\Downloads\Subtitles"
-```
-
-Positional form:
-
-```powershell
-Rename-SrtFiles "D:\Media\Season 1" "D:\Downloads\Subtitles"
-```
-
-### Choose the Subtitle Folder While Using the Current Folder for Videos
-
-To use the current folder for videos but a different folder for subtitles, specify the video folder explicitly as `.`:
-
-```powershell
-Rename-SrtFiles -VideoPath . -SubtitlePath "D:\Downloads\Subtitles"
-```
+The current working directory is the folder shown by `Get-Location`, not necessarily the folder containing the `.ps1` file. Paths must refer to exising folders.
 
 ## Matching and File Changes
 
 The videos and subtitles are assumed to belong to the same movie or show. If you supply separate video and subtitle folders, choose folders that belong together; show names are not validated.
 
 - **One video and one subtitle:** they always match, regardless of their filenames. For example, `Downloaded.Subtitles.srt` becomes `Film.srt` alongside `Film.mkv`
-- **Multiple files:** exact filenames are reserved first. Remaining videos are matched by the first season-and-episode token, such as `S01E10`. Numbers are compared numerically, so `S1E10` matches `S01E10`; show names do not matter. If no episode match is found, the function tries a filename prefix such as `Film.en.srt` for   `Film.mkv`, considering longer video names first.
+- **Multiple files:** exact filenames are reserved first. Remaining videos are matched by the first season-and-episode token, such as `S01E10`. Numbers are compared numerically, so `S1E10` matches `S01E10`; show names do not matter. If no episode match is found, the function tries a filename prefix such as `Film.en.srt` for `Film.mkv`, considering longer video names first.
 
-If multiple subtitles match, you choose one from a numbered list; enter `0` to cancel before and files change. With multiple files, unmatched videos and unused subtitles are left untouched rather than paired alphabetically. Multi-episode ranges are not specially interpreted, so review their proposed matches before confirming.
+If multiple subtitles match, you choose one from a numbered list; enter `0` to cancel before any files change. With multiple files, unmatched videos and unused subtitles are left untouched rather than paired alphabetically. Multi-episode ranges are not specially interpreted, so review their proposed matches before confirming.
 
 If the number of video files and subtitle files differs, the function shows a warning and asks whether to continue. Answer `y` or `yes` to continue; any other response cancels. Some videos may then have no subtitle, or some subtitle files may remain unused.
 
@@ -127,7 +80,7 @@ notepad $PROFILE
 Add this line to the profile, changing it to the actual location of the project:
 
 ```powershell
-. "C:\Users\Cesar\source\repos\SubtitleRenamer\Scripts\RenameSrtFiles.ps1"
+. "<repo>\Scripts\RenameSrtFiles.ps1"
 ```
 
 Save the profile. To load the change immediately into the current session, run:
