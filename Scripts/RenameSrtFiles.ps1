@@ -1,4 +1,66 @@
 function Rename-SrtFiles {
+	<#
+	.SYNOPSIS
+	Renames .srt subtitle files so they match the video files they belong to. 
+
+	.DESCRIPTION
+	Scans a video folder and a subtitle folder (neither is searched recursively),
+	proposes a mapping, shows it, and asks for confirmation before chaning files.
+
+	Matching: a single video and a signle subtitle always match. Otherwise exact
+	filenames are matched first, then the first season/episode token (S02E11;
+	numbers compare numerically), then a filename prefix such as Film.en.srt for
+	Film.mkv. If several subtitles match, you choose one from a numbered list.
+
+	Output always goes in the video folder. If the subtitle folder is the same as
+	the video folder, subtitles are renamed in place; otherwise they are copies and 
+	the originals are left unchanged. Existing files are never overwritten.
+
+	.PARAMETER VideoPath
+	Folder containing the video files. Defaults to the current directory.
+
+	.PARAMETER SubtitlePath
+	Folder containing the .srt files. Defaults to the VideoPath
+
+	.EXAMPLE
+	Rename-SrtFiles
+
+	Matches videos and subtitles in the current directory.
+
+	.EXAMPLE
+	Rename-SrtFiles -VideoPath "D:\YourFavoriteShow\Season 2"
+
+	Matches videos and subtitles that are both in the given folder.
+
+	.EXAMPLE
+	Rename-SrtFiles "D:\YourFavoriteShow\Season 2"
+
+	Matches videos and subtitles that are both in the given folder.
+
+	.EXAMPLE
+	Rename-SrtFiles -VideoPath "D:\YourFavoriteShow\Season 2" -SubtitlePath "D:\Downloads\Subtitles"
+
+	Copies matching subtitles from the subtitle folder into the video folder.
+
+	.EXAMPLE
+	Rename-SrtFiles "D:\YourFavoriteShow\Season 2" "D:\Downloads\Subtitles"
+
+	Copies matching subtitles from the subtitle folder into the video folder.
+
+	.EXAMPLE
+	Rename-SrtFiles -VideoPath . -SubtitlePath "D:\Downloads\Subtitles"
+
+	Copies matching subtitles from the subtitle folder into the current folder.
+
+	.INPUTS
+	None.
+
+	.OUTPUTS
+	None. Progress is written to the host.
+	
+	.NOTES
+	Prompts (y/N) before changing files; any answer other than y or yes cancels.
+	#>
 	[CmdletBinding()]
 	param(
 		[Parameter(Position = 0)]
